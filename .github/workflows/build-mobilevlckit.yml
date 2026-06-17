@@ -1,0 +1,51 @@
+name: Build MobileVLCKit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ios-device:
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout VLCKit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Show environment
+        run: |
+          sw_vers
+          xcodebuild -version
+          python3 --version
+          df -h
+
+      - name: Build MobileVLCKit arm64 device
+        run: |
+          chmod +x ./compileAndBuildVLCKit.sh
+          ./compileAndBuildVLCKit.sh -r -f -a aarch64
+
+      - name: List possible build outputs
+        if: always()
+        run: |
+          find . -maxdepth 8 \( \
+            -name "*.framework" -o \
+            -name "*.xcframework" -o \
+            -name "*.a" -o \
+            -name "*.zip" -o \
+            -name "*.log" \
+          \) -print
+          df -h
+
+      - name: Upload VLCKit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MobileVLCKit-arm64
+          retention-days: 3
+          path: |
+            **/*.framework
+            **/*.xcframework
+            **/*.a
+            **/*.zip
+            **/*.log
