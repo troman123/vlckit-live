@@ -6,6 +6,7 @@ on:
 jobs:
   build-ios-device:
     runs-on: macos-15
+    timeout-minutes: 360
 
     steps:
       - name: Checkout VLCKit
@@ -13,37 +14,87 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Setup Python 3.7
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.7'
+
       - name: Show environment
         run: |
           sw_vers
           xcodebuild -version
+          which python3
           python3 --version
           df -h
 
-      - name: Build MobileVLCKit arm64 device
+      - name: Prepare patched VLC source
+        shell: bash
         run: |
-          chmod +x ./compileAndBuildVLCKit.sh
-          ./compileAndBuildVLCKit.sh -r -f -a aarch64
+          set -euxo pipefail
 
-      - name: List possible build outputs
-        if: always()
+          echo "Read TESTEDHASH from compileAndBuildVLCKit.sh"
+          VLC_TESTED_HASH="$(grep '^TESTEDHASH=' ./compileAndBuildVLCKit.sh | head -1 | cut -d= -f2 | tr -d '"')"
+          echo "Using VLC tested hash: ${VLC_TESTED_HASH}"
+
+          echo "Prepare libvlc/vlc directory"
+          mkdir -p libvlc
+          rm -rf libvlc/vlc
+
+          echo "Clone VLC source"
+          git clone https://code.videolan.org/videolan/vlc.git libvlc/vlc
+
+          echo "Checkout tested VLC hash"
+          cd libvlc/vlc
+          git checkout -B localBranch "${VLC_TESTED_HASH}"
+
+          echo "Apply VLCKit VLC patches"
+          git am ../../libvlc/patches/*.patch
+
+          echo "Patch GNU mirror fallback URL for extras/tools"
+          if [ -f extras/tools/packages.mak ]; then
+            perl -0pi -e 's#https://ftpmirror\.gnu\.org/gnu#https://ftp.gnu.org/gnu#g; s#http://ftpmirror\.gnu\.org/gnu#https://ftp.gnu.org/gnu#g' extras/tools/packages.mak
+          fi
+
+          echo "Show gettext lines after patch"
+          grep -n "gettext" extras/tools/packages.mak || true
+
+      - name: Build MobileVLCKit arm64 device
+        shell: bash
         run: |
+          set -o pipefail
+          chmod +x ./compileAndBuildVLCKit.sh
+          ./compileAndBuildVLCKit.sh -r -f -a aarch64 -e "$PWD/libvlc/vlc" 2>&1 | tee vlckit-build.log
+
+      - name: Summarize possible errors
+        if: always()
+        shell: bash
+        run: |
+          echo "===== possible errors ====="
+          if [ -f vlckit-build.log ]; then
+            grep -nEi "error:|fatal:|No such file|not found|failed|Error [0-9]|make\\[[0-9]+\\]: \\*\\*\\*" vlckit-build.log | tail -300 || true
+          else
+            echo "vlckit-build.log not found"
+          fi
+
+          echo "===== possible outputs ====="
           find . -maxdepth 8 \( \
             -name "*.framework" -o \
             -name "*.xcframework" -o \
             -name "*.a" -o \
             -name "*.zip" -o \
             -name "*.log" \
-          \) -print
+          \) -print || true
+
           df -h
 
-      - name: Upload VLCKit artifacts
+      - name: Upload VLCKit artifacts and logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: MobileVLCKit-arm64
           retention-days: 3
           path: |
+            vlckit-build.log
             **/*.framework
             **/*.xcframework
             **/*.a
