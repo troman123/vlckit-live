@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       source_run_id:
-        description: 'Successful Build MobileVLCKit workflow run id'
+        description: "Successful Build MobileVLCKit workflow run id"
         required: true
         type: string
       release_tag:
-        description: 'Release tag, example: vlckit-arm64-2026-06-18-1'
+        description: "Release tag, example: vlckit-arm64-2026-06-18-1"
         required: true
         type: string
       release_title:
-        description: 'Release title'
+        description: "Release title"
         required: false
-        default: 'MobileVLCKit arm64 build'
+        default: "MobileVLCKit arm64 build"
         type: string
 
 permissions:
@@ -36,6 +36,7 @@ jobs:
 
       - name: Show downloaded files
         run: |
+          set -eux
           find downloaded-artifacts -maxdepth 10 -print
 
       - name: Package release assets
@@ -44,29 +45,54 @@ jobs:
 
           mkdir -p release-assets
 
-          tar -czf "release-assets/MobileVLCKit-arm64-artifact.tar.gz" -C downloaded-artifacts .
+          # Package the whole downloaded artifact folder.
+          tar -czf release-assets/MobileVLCKit-arm64-artifact.tar.gz -C downloaded-artifacts .
 
-          find downloaded-artifacts -type f \( \
-            -name "*.zip" -o \
-            -name "*.log" -o \
-            -name "*.a" \
-          \) -exec cp {} release-assets/ \;
+          # Keep build log as a separate asset if it exists.
+          if [ -f downloaded-artifacts/vlckit-build.log ]; then
+            cp downloaded-artifacts/vlckit-build.log release-assets/vlckit-build.log
+          fi
 
+          # Add checksum file.
+          cd release-assets
+          sha256sum * > SHA256SUMS.txt
+          cd ..
+
+          echo "===== release assets ====="
           find release-assets -maxdepth 2 -type f -print
 
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ inputs.release_tag }}
           RELEASE_TITLE: ${{ inputs.release_title }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
         run: |
           set -eux
 
-          gh release create "$RELEASE_TAG" release-assets/* \
-            --title "$RELEASE_TITLE" \
-            --notes "MobileVLCKit arm64 artifact release.
+          SOURCE_SHA="$(gh api "repos/$GH_REPO/actions/runs/$SOURCE_RUN_ID" --jq '.head_sha')"
+          echo "Source build commit: $SOURCE_SHA"
+
+          cat > release-notes.md <<EOF
+          MobileVLCKit arm64 artifact release.
 
           Source workflow run id: $SOURCE_RUN_ID
+          Source commit: $SOURCE_SHA
+
           Created from GitHub Actions artifact.
-          "
+          EOF
+
+          if gh release view "$RELEASE_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "Release already exists. Uploading assets with --clobber."
+            gh release upload "$RELEASE_TAG" release-assets/* \
+              --repo "$GH_REPO" \
+              --clobber
+          else
+            echo "Creating new release."
+            gh release create "$RELEASE_TAG" release-assets/* \
+              --repo "$GH_REPO" \
+              --target "$SOURCE_SHA" \
+              --title "$RELEASE_TITLE" \
+              --notes-file release-notes.md
+          fi
