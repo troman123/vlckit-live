@@ -89,9 +89,5 @@ jobs:
           name: MobileVLCKit-arm64
           retention-days: 3
           path: |
+            release-assets/**
             vlckit-build.log
-            **/*.framework
-            **/*.xcframework
-            **/*.a
-            **/*.zip
-            **/*.log
