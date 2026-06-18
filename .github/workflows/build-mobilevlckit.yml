@@ -28,7 +28,7 @@ jobs:
           set -euxo pipefail
 
           echo "Read TESTEDHASH from compileAndBuildVLCKit.sh"
-          VLC_TESTED_HASH="$(grep '^TESTEDHASH=' ./compileAndBuildVLCKit.sh | head -1 | cut -d= -f2 | tr -d '"')"
+          VLC_TESTED_HASH="$(grep '^TESTEDHASH=' ./compileAndBuildVLCKit.sh | head -1 | cut -d= -f2 | tr -d '"' | awk '{print $1}')"
           echo "Using VLC tested hash: ${VLC_TESTED_HASH}"
 
           echo "Prepare libvlc/vlc directory"
