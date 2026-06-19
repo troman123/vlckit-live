@@ -7,10 +7,10 @@ on:
         description: "Successful Build MobileVLCKit workflow run id"
         required: true
         type: string
-      release_tag:
-        description: "Release tag, example: vlckit-arm64-2026-06-18-1"
-        required: true
-        type: string
+        # release_tag:
+        #   description: "Release tag, example: vlckit-arm64-2026-06-18-1"
+        #   required: true
+        #   type: string
       release_title:
         description: "Release title"
         required: false
@@ -49,9 +49,9 @@ jobs:
           tar -czf release-assets/MobileVLCKit-arm64-artifact.tar.gz -C downloaded-artifacts .
 
           # Keep build log as a separate asset if it exists.
-          if [ -f downloaded-artifacts/vlckit-build.log ]; then
-            cp downloaded-artifacts/vlckit-build.log release-assets/vlckit-build.log
-          fi
+          # if [ -f downloaded-artifacts/vlckit-build.log ]; then
+          #   cp downloaded-artifacts/vlckit-build.log release-assets/vlckit-build.log
+          # fi
 
           # Add checksum file.
           cd release-assets
@@ -65,12 +65,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          #RELEASE_TAG: ${{ inputs.release_tag }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           RELEASE_TITLE: ${{ inputs.release_title }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
         run: |
           set -eux
-
+          RELEASE_TAG="vlckit-arm64-run-${SOURCE_RUN_ID}"
           SOURCE_SHA="$(gh api "repos/$GH_REPO/actions/runs/$SOURCE_RUN_ID" --jq '.head_sha')"
           echo "Source build commit: $SOURCE_SHA"
 
