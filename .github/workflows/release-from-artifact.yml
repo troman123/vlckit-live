@@ -68,7 +68,7 @@ jobs:
           #RELEASE_TAG: ${{ inputs.release_tag }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           RELEASE_TITLE: ${{ inputs.release_title }}
-          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          # SOURCE_RUN_ID: ${{ inputs.source_run_id }}
         run: |
           set -eux
           RELEASE_TAG="vlckit-arm64-run-${SOURCE_RUN_ID}"
