@@ -92,7 +92,6 @@ jobs:
             echo "Creating new release."
             gh release create "$RELEASE_TAG" release-assets/* \
               --repo "$GH_REPO" \
-              --target "$SOURCE_SHA" \
               --title "$RELEASE_TITLE" \
               --notes-file release-notes.md
           fi
