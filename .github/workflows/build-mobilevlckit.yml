@@ -4,9 +4,33 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-ios-device:
+  build:
     runs-on: macos-15
     timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: iOS
+            flag: ""
+            artifact: MobileVLCKit-iOS
+            xcframework_path: build/iOS/VLCKit.xcframework
+          - platform: tvOS
+            flag: "-t"
+            artifact: MobileVLCKit-tvOS
+            xcframework_path: build/tvOS/VLCKit.xcframework
+          - platform: macOS
+            flag: "-x"
+            artifact: MobileVLCKit-macOS
+            xcframework_path: build/macOS/VLCKit.xcframework
+          - platform: watchOS
+            flag: "-w"
+            artifact: MobileVLCKit-watchOS
+            xcframework_path: build/watchOS/VLCKit.xcframework
+          - platform: xrOS
+            flag: "-i"
+            artifact: MobileVLCKit-xrOS
+            xcframework_path: build/xrOS/VLCKit.xcframework
 
     steps:
       - name: Checkout VLCKit
@@ -53,12 +77,12 @@ jobs:
           echo "Show gettext lines after patch"
           grep -n "gettext" extras/tools/packages.mak || true
 
-      - name: Build MobileVLCKit arm64 device
+      - name: Build VLCKit for ${{ matrix.platform }}
         shell: bash
         run: |
           set -o pipefail
           chmod +x ./compileAndBuildVLCKit.sh
-          ./compileAndBuildVLCKit.sh -r -f -a aarch64 -e "$PWD/libvlc/vlc" 2>&1 | tee vlckit-build.log
+          ./compileAndBuildVLCKit.sh -r -f ${{ matrix.flag }} -a aarch64 -e "$PWD/libvlc/vlc" 2>&1 | tee vlckit-build.log
 
       - name: Summarize possible errors
         if: always()
@@ -86,8 +110,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: MobileVLCKit-arm64
+          name: ${{ matrix.artifact }}
           retention-days: 3
           path: |
             vlckit-build.log
-            build/iOS/VLCKit.xcframework
+            ${{ matrix.xcframework_path }}
