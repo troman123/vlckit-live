@@ -58,12 +58,7 @@ jobs:
         run: |
           set -o pipefail
           chmod +x ./compileAndBuildVLCKit.sh
-          # ./compileAndBuildVLCKit.sh -r -f -a aarch64 -e "$PWD/libvlc/vlc" 2>&1 | tee vlckit-build.log
-          ./compileAndBuildVLCKit.sh -r -f -e "$PWD/libvlc/vlc" 2>&1 | tee vlckit-ios.log
-          ./compileAndBuildVLCKit.sh -r -f -t -e "$PWD/libvlc/vlc" 2>&1 | tee vlckit-tvos.log 
-          ./compileAndBuildVLCKit.sh -r -f -x -e "$PWD/libvlc/vlc" 2>&1 | tee vlckit-macos.log 
-          ./compileAndBuildVLCKit.sh -r -f -i -e "$PWD/libvlc/vlc" 2>&1 | tee vlckit-visionos.log 
-          ./compileAndBuildVLCKit.sh -r -f -w -e "$PWD/libvlc/vlc" 2>&1 | tee vlckit-watchos.log
+          ./compileAndBuildVLCKit.sh -r -a aarch64 -e "$PWD/libvlc/vlc" 2>&1 | tee vlckit-build.log
 
       - name: Summarize possible errors
         if: always()
