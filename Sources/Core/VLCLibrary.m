@@ -79,8 +79,9 @@
 # include "vlc-plugins-watch-simulator-arm64.h"
 #endif
 #else
-#if __armv7k__
-#warning armv7k
+#if __aarch64__
+# include "vlc-plugins-watch-device-arm64.h"
+#elif __armv7k__
 # include "vlc-plugins-watch-device-armv7k.h"
 #else
 # include "vlc-plugins-watch-device-arm64_32.h"
