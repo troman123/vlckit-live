@@ -2,6 +2,21 @@ name: Build MobileVLCKit
 
 on:
   workflow_dispatch:
+    inputs:
+      create_release:
+        description: "Create a GitHub Release after successful builds"
+        required: false
+        default: false
+        type: boolean
+      release_title:
+        description: "Release title (if creating release)"
+        required: false
+        default: "MobileVLCKit all Apple platforms build"
+        type: string
+
+permissions:
+  contents: write
+  actions: read
 
 jobs:
   build:
@@ -115,3 +130,70 @@ jobs:
           path: |
             vlckit-build.log
             ${{ matrix.xcframework_path }}
+
+  release:
+    if: ${{ inputs.create_release == true }}
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+          merge-multiple: true
+
+      - name: Show downloaded files
+        run: |
+          set -eux
+          find downloaded-artifacts -maxdepth 10 -print
+
+      - name: Package release assets
+        run: |
+          set -eux
+
+          mkdir -p release-assets
+
+          tar -czf release-assets/MobileVLCKit-all-platforms-artifact.tar.gz -C downloaded-artifacts .
+
+          # Add checksum file.
+          cd release-assets
+          sha256sum * > SHA256SUMS.txt
+          cd ..
+
+          echo "===== release assets ====="
+          find release-assets -maxdepth 2 -type f -print
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TITLE: ${{ inputs.release_title }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -eux
+          RELEASE_TAG="vlckit-all-platforms-run-${RUN_ID}"
+          SOURCE_SHA="${{ github.sha }}"
+          echo "Source build commit: $SOURCE_SHA"
+
+          cat > release-notes.md <<EOF
+          MobileVLCKit all Apple platforms artifact release.
+
+          Source workflow run id: $RUN_ID
+          Source commit: $SOURCE_SHA
+
+          Created from GitHub Actions build.
+          EOF
+
+          if gh release view "$RELEASE_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "Release already exists. Uploading assets with --clobber."
+            gh release upload "$RELEASE_TAG" release-assets/* \
+              --repo "$GH_REPO" \
+              --clobber
+          else
+            echo "Creating new release."
+            gh release create "$RELEASE_TAG" release-assets/* \
+              --repo "$GH_REPO" \
+              --title "$RELEASE_TITLE" \
+              --notes-file release-notes.md
+          fi
